@@ -1,10 +1,24 @@
 import React, { useState, useRef, useCallback } from 'react';
-import {View, Text, StyleSheet, Alert, FlatList, TouchableOpacity, Modal,  Animated,  Image,} from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  StatusBar,
+  ScrollView,
+  Modal,
+  Animated,
+  Alert,
+  Image,
+} from 'react-native';
+import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
+import { faArrowLeft, faGear, faUser } from '@fortawesome/free-solid-svg-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { auth, db } from '../firebaseConfig';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
-export default function Perfil() {
+export default function ProfileScreen() {
   const navigation = useNavigation();
   const [savedOutfits, setSavedOutfits] = useState([]);
   const [nomeUsuario, setNomeUsuario] = useState('Carregando...');
@@ -14,25 +28,21 @@ export default function Perfil() {
 
   const fetchUserData = async () => {
     if (!auth.currentUser) {
-      console.log("Nenhum usuário logado");
       navigation.replace('Login');
       return;
     }
 
-    console.log("Usuário logado:", auth.currentUser.email);
     try {
       const userDocRef = doc(db, 'users', auth.currentUser.uid);
       const userDoc = await getDoc(userDocRef);
 
       if (userDoc.exists()) {
         const data = userDoc.data();
-        console.log("Documento encontrado:", data);
         const nomeFirestore = data.nome || '';
         const fallback = auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || 'Usuário';
         setNomeUsuario(nomeFirestore.trim() !== '' ? nomeFirestore : fallback);
         setSavedOutfits(data.savedOutfits || []);
       } else {
-        console.log("Documento não existe. Criando...");
         const fallbackName = auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || 'Usuário';
         await setDoc(userDocRef, {
           nome: fallbackName,
@@ -43,12 +53,10 @@ export default function Perfil() {
         setSavedOutfits([]);
       }
     } catch (error) {
-      console.error("Erro crítico no fetchUserData:", error);
       Alert.alert("Erro", "Falha ao carregar perfil: " + (error.message || 'desconhecido'));
       setNomeUsuario('Usuário');
       setSavedOutfits([]);
     } finally {
-      console.log("Finalizando carregamento");
       setLoading(false);
     }
   };
@@ -79,57 +87,92 @@ export default function Perfil() {
     Animated.spring(slideAnim, { toValue: 300, useNativeDriver: false }).start(() => setIsMenuVisible(false));
   };
 
-  const renderOutfitItem = ({ item, index }) => (
+  const renderOutfitCard = (item, index) => (
     <TouchableOpacity
+      key={index}
       style={styles.outfitCard}
-      onPress={() => Alert.alert('Look', item.name || 'Sem nome')}
+      onPress={() => {
+        if (item && item.name) {
+          Alert.alert('Look', item.name);
+        }
+      }}
     >
-      {item.imageUrl ? (
+      {item && item.imageUrl ? (
         <Image source={{ uri: item.imageUrl }} style={styles.outfitImage} />
       ) : (
-        <View style={styles.placeholder}>
-          <Text style={styles.placeholderText}>?</Text>
-        </View>
+        <View style={styles.placeholder} />
       )}
     </TouchableOpacity>
   );
 
+  // Garante sempre 6 cards (preenche com null se necessário)
+  const outfitsToShow = [...savedOutfits];
+  while (outfitsToShow.length < 6) {
+    outfitsToShow.push(null);
+  }
+
+  // Agrupa em pares (2 por linha)
+  const groupedOutfits = [];
+  for (let i = 0; i < outfitsToShow.length; i += 2) {
+    groupedOutfits.push(outfitsToShow.slice(i, i + 2));
+  }
+
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backIcon}>←</Text> 
-        </TouchableOpacity>
-        <View style={styles.profileHeader}>
-          <View style={styles.avatarPlaceholder} />
-          <Text style={styles.profileName}>{nomeUsuario}</Text>
-          <Text style={styles.profileEmail}>{auth.currentUser?.email}</Text>
-          <Text style={styles.outfitCount}>{savedOutfits.length} Outfits</Text>
-        </View>
-        <TouchableOpacity onPress={openMenu}>
-          <Text style={styles.settingsIcon}>⚙️</Text>
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" />
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Carregando perfil...</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={savedOutfits}
-          renderItem={renderOutfitItem}
-          keyExtractor={(item, i) => i.toString()}
-          numColumns={2}
-          contentContainerStyle={styles.gridContent}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text>Você não salvou nenhum look ainda.</Text>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollViewContent}
+        showsVerticalScrollIndicator={false}
+        bounces={true}
+      >
+        {/* SEÇÃO ROXA - Perfil */}
+        <View style={styles.purpleSection}>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
+              <FontAwesomeIcon icon={faArrowLeft} size={20} color="#FFF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={openMenu} style={styles.iconButton}>
+              <FontAwesomeIcon icon={faGear} size={20} color="#FFF" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Card do Perfil */}
+          <View style={styles.profileCard}>
+            <View style={styles.avatarContainer}>
+              <View style={styles.avatar}>
+                <FontAwesomeIcon icon={faUser} size={50} color="#999" />
+              </View>
             </View>
-          }
-        />
-      )}
 
+            <Text style={styles.name}>{nomeUsuario}</Text>
+            <Text style={styles.email}>{auth.currentUser?.email || '—'}</Text>
+            <Text style={styles.outfitsText}>
+              {loading ? '— Outfits' : `${savedOutfits.length} Outfits`}
+            </Text>
+            <View style={styles.tabIndicator} />
+          </View>
+        </View>
+
+        {/* SEÇÃO CINZA - Grid de Outfits */}
+        <View style={styles.graySection}>
+          <View style={styles.gridContainer}>
+            {groupedOutfits.map((row, rowIndex) => (
+              <View key={rowIndex} style={styles.gridRow}>
+                {row.map((item, colIndex) => {
+                  const globalIndex = rowIndex * 2 + colIndex;
+                  return renderOutfitCard(item, globalIndex);
+                })}
+              </View>
+            ))}
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Menu Modal */}
       <Modal
         visible={isMenuVisible}
         transparent={true}
@@ -156,10 +199,7 @@ export default function Perfil() {
             <Text style={styles.arrow}>›</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={handleEditarEstilos}
-          >
+          <TouchableOpacity style={styles.menuItem} onPress={handleEditarEstilos}>
             <View style={styles.menuIcon}>
               <Text style={styles.iconText}>🎨</Text>
             </View>
@@ -207,29 +247,146 @@ export default function Perfil() {
           </TouchableOpacity>
         </Animated.View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f0f0' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: '#9c88ff' },
-  profileHeader: { alignItems: 'center' },
-  avatarPlaceholder: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#ccc', marginBottom: 8 },
-  profileName: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
-  profileEmail: { fontSize: 14, color: '#eee' },
-  outfitCount: { fontSize: 12, color: '#fff', marginTop: 4 },
-  backIcon: { fontSize: 20, color: '#fff' },
-  settingsIcon: { fontSize: 20, color: '#fff' },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { fontSize: 16, color: '#666' },
-  gridContent: { padding: 10 },
-  outfitCard: { flex: 1, margin: 5, aspectRatio: 1, backgroundColor: '#fff', borderRadius: 8 },
-  placeholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  placeholderText: { fontSize: 24, color: '#aaa' },
-  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+  container: {
+    flex: 1,
+    backgroundColor: '#E8E8E8', // Fundo geral cinza
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+  },
+  
+  // SEÇÃO ROXA
+  purpleSection: {
+    backgroundColor: '#9B8FD4',
+    paddingTop: 10,
+    paddingBottom: 40,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    marginBottom: 40,
+    marginTop: 10,
+  },
+  iconButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  profileCard: {
+    backgroundColor: '#F5F5F0',
+    marginHorizontal: 24,
+    borderRadius: 24,
+    paddingBottom: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  avatarContainer: {
+    marginTop: -50,
+    marginBottom: 24,
+  },
+  avatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#D3CEC4',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 6,
+    borderColor: '#F5F5F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  name: {
+    fontSize: 44,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 4,
+    letterSpacing: -1,
+  },
+  email: {
+    fontSize: 17,
+    color: '#999',
+    marginBottom: 24,
+  },
+  outfitsText: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#000',
+    marginBottom: 16,
+  },
+  tabIndicator: {
+    width: 150,
+    height: 4,
+    backgroundColor: '#7B6FC8',
+    borderRadius: 2,
+  },
 
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+  // SEÇÃO CINZA
+  graySection: {
+    flex: 1,
+    backgroundColor: '#E8E8E8',
+    paddingTop: 24,
+    paddingBottom: 80,
+  },
+  gridContainer: {
+    paddingHorizontal: 24,
+  },
+  gridRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  outfitCard: {
+    width: '48%',
+    aspectRatio: 0.75,
+    backgroundColor: '#F5F5F0',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    overflow: 'hidden',
+  },
+  outfitImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  placeholder: {
+    flex: 1,
+    backgroundColor: '#F5F5F0',
+  },
+
+  // Modal Menu
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
   menuContainer: {
     position: 'absolute',
     bottom: 0,
@@ -266,7 +423,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#9c88ff',
+    backgroundColor: '#9B8FD4',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
