@@ -39,7 +39,8 @@
           "photosPermission": "Precisamos acessar sua galeria para selecionar fotos de roupas.",
           "cameraPermission": "Precisamos acessar sua câmera para tirar fotos das roupas."
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }
