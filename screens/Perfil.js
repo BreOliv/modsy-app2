@@ -12,16 +12,40 @@ import {
   Image,
 } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faArrowLeft, faGear, faUser, faTimes, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faGear, faUser, faTimes, faTrash, faPalette, faCircleQuestion, faRightFromBracket } from '@fortawesome/free-solid-svg-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { auth, db } from '../firebaseConfig';
 import { doc, getDoc, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
 import { useFonts } from 'expo-font';
 
+const AVATARS = [
+  require('../img/1.png'),
+  require('../img/2.png'),
+  require('../img/3.png'),
+  require('../img/4.png'),
+  require('../img/5.png'),
+  require('../img/6.png'),
+  require('../img/7.png'),
+  require('../img/8.png'),
+  require('../img/9.png'),
+  require('../img/10.png'),
+  require('../img/11.png'),
+  require('../img/12.png'),
+  require('../img/13.png'),
+  require('../img/14.png'),
+  require('../img/15.png'),
+  require('../img/16.png'),
+  require('../img/17.png'),
+  require('../img/18.png'),
+  require('../img/19.png'),
+  require('../img/20.png'),
+];
+
 export default function ProfileScreen() {
   const navigation = useNavigation();
   const [savedOutfits, setSavedOutfits] = useState([]);
   const [nomeUsuario, setNomeUsuario] = useState('Carregando...');
+  const [avatarIndex, setAvatarIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(300)).current;
@@ -34,6 +58,7 @@ export default function ProfileScreen() {
 
   const [fontsLoaded] = useFonts({
     'StretchPro': require('../fonts/StretchPro.otf'),
+    'CreatoDisplay': require('../fonts/CreatoDisplay-Medium.otf'),
   });
 
   const fetchUserData = async () => {
@@ -52,6 +77,10 @@ export default function ProfileScreen() {
         const fallback = auth.currentUser.displayName || auth.currentUser.email?.split('@')[0] || 'Usuário';
         setNomeUsuario(nomeFirestore.trim() !== '' ? nomeFirestore : fallback);
 
+        // Buscar o índice do avatar salvo
+        const avatarIndexFromFirestore = data.avatarIndex !== undefined ? data.avatarIndex : 0;
+        setAvatarIndex(avatarIndexFromFirestore);
+
         const looksCollectionRef = collection(db, 'users', auth.currentUser.uid, 'looks');
         const looksSnapshot = await getDocs(looksCollectionRef);
 
@@ -59,13 +88,16 @@ export default function ProfileScreen() {
         looksSnapshot.forEach((doc) => {
           const lookData = doc.data();
           if (lookData.pecas && Array.isArray(lookData.pecas) && lookData.pecas.length > 0) {
+            const descricao = lookData.descricao || lookData.ocasiao || lookData.ocasion || lookData.name || lookData.titulo || '';
             const tipos = lookData.pecas.map(p => p.tipo).filter(Boolean).join(', ');
-            const name = tipos ? `Look: ${tipos}` : 'Look salvo';
+            
+            const name = descricao ? descricao : (tipos ? `Look: ${tipos}` : 'Look salvo');
+            
             savedOutfitsList.push({
               id: doc.id,
               name,
               pecas: lookData.pecas,
-              estilo: lookData.estilo || 'Sem estilo definido',
+              descricao: descricao,
             });
           }
         });
@@ -78,17 +110,29 @@ export default function ProfileScreen() {
           estilos: [],
           email: auth.currentUser.email || '',
           createdAt: new Date(),
+          avatarIndex: 0,
         });
         setNomeUsuario(fallbackName);
+        setAvatarIndex(0);
         setSavedOutfits([]);
       }
     } catch (error) {
       Alert.alert('Erro', 'Falha ao carregar perfil: ' + (error.message || 'desconhecido'));
       setNomeUsuario('Usuário');
+      setAvatarIndex(0);
       setSavedOutfits([]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const renderAvatar = () => {
+    return (
+      <Image 
+        source={AVATARS[avatarIndex]} 
+        style={styles.avatarImage}
+      />
+    );
   };
 
   useFocusEffect(
@@ -155,76 +199,106 @@ export default function ProfileScreen() {
     });
   };
 
-  // Excluir look
+  // Função para excluir look
   const deleteLook = async (lookId) => {
+    try {
+      if (!auth.currentUser) {
+        Alert.alert('Erro', 'Usuário não autenticado.');
+        return;
+      }
+
+      const lookDocRef = doc(db, 'users', auth.currentUser.uid, 'looks', lookId);
+      await deleteDoc(lookDocRef);
+
+      setSavedOutfits(prevOutfits => prevOutfits.filter(outfit => outfit.id !== lookId));
+
+      if (isLookModalVisible && selectedLook?.id === lookId) {
+        closeLookModal();
+      }
+
+      Alert.alert('Sucesso', 'Look excluído com sucesso!');
+    } catch (error) {
+      console.error('Erro ao excluir look:', error);
+      Alert.alert('Erro', 'Não foi possível excluir o look: ' + error.message);
+    }
+  };
+
+  // Função para confirmar exclusão
+  const confirmDeleteLook = (lookId) => {
     Alert.alert(
       'Excluir Look',
-      'Tem certeza que deseja excluir este look?',
+      'Tem certeza que deseja excluir este look? Esta ação não pode ser desfeita.',
       [
-        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
         {
           text: 'Excluir',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              const lookDocRef = doc(db, 'users', auth.currentUser.uid, 'looks', lookId);
-              await deleteDoc(lookDocRef);
-              setSavedOutfits(prev => prev.filter(outfit => outfit.id !== lookId));
-              closeLookModal();
-              Alert.alert('Sucesso', 'Look excluído com sucesso!');
-            } catch (error) {
-              Alert.alert('Erro', 'Não foi possível excluir o look: ' + error.message);
-            }
-          },
+          onPress: () => deleteLook(lookId),
         },
       ]
     );
   };
 
-  const LookCard = ({ item }) => {
-    const camisa = item.pecas.find(p => ['Camisa', 'Blusa', 'Top', 'Regata'].includes(p.tipo));
-    const calca = item.pecas.find(p => ['Calça', 'Saia', 'Shorts'].includes(p.tipo));
-    const sapato = item.pecas.find(p => ['Tênis', 'Sapato', 'Sandália'].includes(p.tipo));
+const LookCard = ({ item }) => {
+  const camisa = item.pecas.find(p => ['Camisa', 'Blusa', 'Top', 'Regata'].includes(p.tipo));
+  const calca = item.pecas.find(p => ['Calça', 'Saia', 'Shorts'].includes(p.tipo));
+  const sapato = item.pecas.find(p => ['Tênis', 'Sapato', 'Sandália'].includes(p.tipo));
 
-    return (
-      <TouchableOpacity
-        style={styles.outfitCard}
-        onPress={() => openLookModal(item)}
-      >
-        <View style={styles.lookContainer}>
-          <View style={styles.mainColumn}>
-            {camisa ? (
-              <Image source={{ uri: camisa.imageUrl }} style={styles.mainPiece} resizeMode="contain" />
-            ) : (
-              <View style={[styles.placeholder, styles.mainPlaceholder]}>
-                <Text style={styles.placeholderText}>Camisa</Text>
-              </View>
-            )}
-
-            {calca ? (
-              <Image source={{ uri: calca.imageUrl }} style={styles.bottomPiece} resizeMode="contain" />
-            ) : (
-              <View style={[styles.placeholder, styles.bottomPlaceholder]}>
-                <Text style={styles.placeholderText}>Calça</Text>
-              </View>
-            )}
-          </View>
-
-          <View style={styles.shoeContainer}>
-            {sapato ? (
-              <Image source={{ uri: sapato.imageUrl }} style={styles.shoePiece} resizeMode="contain" />
-            ) : (
-              <View style={[styles.placeholder, styles.shoePlaceholder]}>
-                <Text style={styles.placeholderText}>Sapato</Text>
-              </View>
-            )}
-          </View>
+  return (
+    <TouchableOpacity
+      style={styles.outfitCard}
+      onPress={() => openLookModal(item)}
+    >
+      {/* Container principal das peças - espaço centralizado */}
+      <View style={styles.lookContainer}>
+        {/* Peça superior (camisa/blusa) */}
+        <View style={styles.topPieceContainer}>
+          {camisa ? (
+            <Image source={{ uri: camisa.imageUrl }} style={styles.topPiece} resizeMode="contain" />
+          ) : (
+            <View style={[styles.placeholder, styles.topPlaceholder]}>
+              <Text style={styles.placeholderText}>Camisa</Text>
+            </View>
+          )}
         </View>
-      </TouchableOpacity>
-    );
-  };
 
-  const outfitsToShow = [...savedOutfits];
+        {/* Peça do meio (calça/saia) */}
+        <View style={styles.middlePieceContainer}>
+          {calca ? (
+            <Image source={{ uri: calca.imageUrl }} style={styles.middlePiece} resizeMode="contain" />
+          ) : (
+            <View style={[styles.placeholder, styles.middlePlaceholder]}>
+              <Text style={styles.placeholderText}>Calça</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Peça inferior (sapato) */}
+        <View style={styles.bottomPieceContainer}>
+          {sapato ? (
+            <Image source={{ uri: sapato.imageUrl }} style={styles.bottomPiece} resizeMode="contain" />
+          ) : (
+            <View style={[styles.placeholder, styles.bottomPlaceholder]}>
+              <Text style={styles.placeholderText}>Sapato</Text>
+            </View>
+          )}
+        </View>
+      </View>
+      
+      {/* Descrição - agora com mais espaço */}
+      <View style={styles.cardDescriptionContainer}>
+        <Text style={styles.cardDescriptionText} numberOfLines={2}>
+          {item.name}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+const outfitsToShow = [...savedOutfits];
   while (outfitsToShow.length < 6) {
     outfitsToShow.push(null);
   }
@@ -232,6 +306,14 @@ export default function ProfileScreen() {
   const groupedOutfits = [];
   for (let i = 0; i < outfitsToShow.length; i += 2) {
     groupedOutfits.push(outfitsToShow.slice(i, i + 2));
+  }
+
+  if (!fontsLoaded) {
+    return (
+      <View style={styles.container}>
+        <Text>Carregando fontes...</Text>
+      </View>
+    );
   }
 
   return (
@@ -246,17 +328,17 @@ export default function ProfileScreen() {
         <View style={styles.purpleSection}>
           <View style={styles.header}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
-              <FontAwesomeIcon icon={faArrowLeft} size={20} color="#FFF" />
+              <FontAwesomeIcon icon={faArrowLeft} size={18} color="#FFF" />
             </TouchableOpacity>
             <TouchableOpacity onPress={openMenu} style={styles.iconButton}>
-              <FontAwesomeIcon icon={faGear} size={20} color="#FFF" />
+              <FontAwesomeIcon icon={faGear} size={18} color="#FFF" />
             </TouchableOpacity>
           </View>
 
           <View style={styles.profileCard}>
             <View style={styles.avatarContainer}>
               <View style={styles.avatar}>
-                <FontAwesomeIcon icon={faUser} size={35} color="#999" />
+                {renderAvatar()}
               </View>
             </View>
             <Text style={styles.name}>{nomeUsuario}</Text>
@@ -293,28 +375,29 @@ export default function ProfileScreen() {
             <Text style={styles.menuTitle}>Configurações</Text>
           </View>
           <TouchableOpacity style={styles.menuItem} onPress={() => { closeMenu(); navigation.navigate('EditarPerfil'); }}>
-            <View style={styles.menuIcon}><Text style={styles.iconText}>👤</Text></View>
+            <View style={styles.menuIcon}>
+              <FontAwesomeIcon icon={faUser} size={18} color="#FFF" />
+            </View>
             <Text style={styles.menuText}>Editar Perfil</Text>
             <Text style={styles.arrow}>›</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.menuItem} onPress={handleEditarEstilos}>
-            <View style={styles.menuIcon}><Text style={styles.iconText}>🎨</Text></View>
+            <View style={styles.menuIcon}>
+              <FontAwesomeIcon icon={faPalette} size={18} color="#FFF" />
+            </View>
             <Text style={styles.menuText}>Editar Gostos</Text>
             <Text style={styles.arrow}>›</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem} onPress={() => { closeMenu(); Alert.alert('Gerenciamento de Conta', 'Em breve!'); }}>
-            <View style={styles.menuIcon}><Text style={styles.iconText}>⚙️</Text></View>
-            <Text style={styles.menuText}>Gerenciamento de Conta</Text>
-            <Text style={styles.arrow}>›</Text>
-          </TouchableOpacity>
           <TouchableOpacity style={styles.menuItem} onPress={() => { closeMenu(); Alert.alert('Ajuda', 'Entre em contato com nosso suporte.'); }}>
-            <View style={styles.menuIcon}><Text style={styles.iconText}>❓</Text></View>
+            <View style={styles.menuIcon}>
+              <FontAwesomeIcon icon={faCircleQuestion} size={18} color="#FFF" />
+            </View>
             <Text style={styles.menuText}>Ajuda</Text>
             <Text style={styles.arrow}>›</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.menuItem, { borderBottomWidth: 0 }]} onPress={handleLogout}>
             <View style={[styles.menuIcon, { backgroundColor: '#f44336' }]}>
-              <Text style={{ fontSize: 18, color: '#fff' }}>🚪</Text>
+              <FontAwesomeIcon icon={faRightFromBracket} size={18} color="#FFF" />
             </View>
             <Text style={[styles.menuText, { color: '#f44336' }]}>Sair da Conta</Text>
             <Text style={[styles.arrow, { color: '#f44336' }]}>›</Text>
@@ -335,6 +418,7 @@ export default function ProfileScreen() {
             activeOpacity={1}
             onPress={closeLookModal}
           />
+          
           {selectedLook && (
             <Animated.View
               style={[
@@ -351,12 +435,16 @@ export default function ProfileScreen() {
 
               <TouchableOpacity 
                 style={styles.deleteButton} 
-                onPress={() => deleteLook(selectedLook.id)}
+                onPress={() => confirmDeleteLook(selectedLook.id)}
               >
                 <FontAwesomeIcon icon={faTrash} size={20} color="#FFF" />
               </TouchableOpacity>
 
-              <Text style={styles.modalLookTitle}>{selectedLook.estilo}</Text>
+              <View style={styles.modalTitleContainer}>
+                <Text style={styles.modalTitleText} numberOfLines={2}>
+                  {selectedLook.name}
+                </Text>
+              </View>
 
               <View style={styles.modalLookContainer}>
                 <View style={styles.modalMainColumn}>
@@ -387,22 +475,22 @@ export default function ProfileScreen() {
                       <Text style={styles.placeholderText}>Calça</Text>
                     </View>
                   )}
+                </View>
 
-                  <View style={styles.modalShoeContainer}>
-                    {selectedLook.pecas.find(p => ['Tênis', 'Sapato', 'Sandália'].includes(p.tipo)) ? (
-                      <Image
-                        source={{
-                          uri: selectedLook.pecas.find(p => ['Tênis', 'Sapato', 'Sandália'].includes(p.tipo)).imageUrl,
-                        }}
-                        style={styles.modalShoePiece}
-                        resizeMode="contain"
-                      />
-                    ) : (
-                      <View style={[styles.placeholder, styles.modalShoePlaceholder]}>
-                        <Text style={styles.placeholderText}>Sapato</Text>
-                      </View>
-                    )}
-                  </View>
+                <View style={styles.modalShoeContainer}>
+                  {selectedLook.pecas.find(p => ['Tênis', 'Sapato', 'Sandália'].includes(p.tipo)) ? (
+                    <Image
+                      source={{
+                        uri: selectedLook.pecas.find(p => ['Tênis', 'Sapato', 'Sandália'].includes(p.tipo)).imageUrl,
+                      }}
+                      style={styles.modalShoePiece}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <View style={[styles.placeholder, styles.modalShoePlaceholder]}>
+                      <Text style={styles.placeholderText}>Sapato</Text>
+                    </View>
+                  )}
                 </View>
               </View>
             </Animated.View>
@@ -438,9 +526,9 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   iconButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
@@ -480,6 +568,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 8,
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   name: {
     fontSize: 26,
@@ -588,6 +681,20 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#999',
   },
+  cardDescriptionContainer: {
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+    paddingTop: 4,
+    minHeight: 40,
+    justifyContent: 'center',
+  },
+  cardDescriptionText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#333',
+    textAlign: 'center',
+    fontFamily: 'CreatoDisplay',
+  },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -633,10 +740,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 15,
   },
-  iconText: {
-    fontSize: 18,
-    color: '#fff',
-  },
   menuText: {
     flex: 1,
     fontSize: 16,
@@ -646,8 +749,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#999',
   },
-
-  // Modal de Look
   lookModalOverlay: {
     flex: 1,
     justifyContent: 'center',
@@ -655,7 +756,7 @@ const styles = StyleSheet.create({
   },
   lookModalBackground: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(155, 143, 212, 0.95)',
+    backgroundColor: 'rgba(155, 143, 212, 0.47)',
   },
   lookModalContent: {
     width: '85%',
@@ -693,57 +794,158 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 10,
   },
-  modalLookTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#000',
+  modalTitleContainer: {
+    marginTop: 10,
+    marginBottom: 15,
+    paddingHorizontal: 10,
+  },
+  modalTitleText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
     textAlign: 'center',
-    marginTop: 50,
-    marginBottom: 10,
-    fontFamily: 'StretchPro',
+    fontFamily: 'CreatoDisplay',
   },
   modalLookContainer: {
-    alignItems: 'center',
-    marginTop: 40,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
     marginBottom: 20,
   },
   modalMainColumn: {
-    width: '100%',
-    alignItems: 'center',
+    width: '65%',
+    justifyContent: 'flex-start',
   },
   modalMainPiece: {
-    width: '80%',
-    height: 160,
+    width: '100%',
+    height: 200,
     borderRadius: 12,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   modalBottomPiece: {
-    width: '80%',
-    height: 160,
+    width: '100%',
+    height: 140,
     borderRadius: 12,
-    marginBottom: 8,
   },
   modalShoeContainer: {
-    width: '100%',
+    width: '30%',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   modalShoePiece: {
-    width: 120,
-    height: 120,
+    width: 90,
+    height: 90,
     borderRadius: 12,
   },
   modalMainPlaceholder: {
-    width: '80%',
-    height: 160,
-    marginBottom: 8,
+    width: '100%',
+    height: 200,
+    marginBottom: 10,
   },
   modalBottomPlaceholder: {
-    width: '80%',
-    height: 160,
-    marginBottom: 8,
+    width: '100%',
+    height: 140,
   },
   modalShoePlaceholder: {
-    width: 120,
-    height: 120,
+    width: 90,
+    height: 90,
   },
+  outfitCard: {
+  width: '48%',
+  aspectRatio: 0.85, // Um pouco mais alongado para dar espaço
+  backgroundColor: '#F5F5F0',
+  borderRadius: 16,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 4,
+  elevation: 3,
+  overflow: 'hidden',
+  padding: 8,
+},
+lookContainer: {
+  flex: 1,
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  paddingVertical: 8,
+},
+topPieceContainer: {
+  width: '100%',
+  height: '35%',
+  justifyContent: 'center',
+  alignItems: 'center',
+  marginBottom: 4,
+},
+middlePieceContainer: {
+  width: '100%',
+  height: '30%',
+  justifyContent: 'center',
+  alignItems: 'center',
+  marginBottom: 4,
+},
+bottomPieceContainer: {
+  width: '100%',
+  height: '20%',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+topPiece: {
+  width: '100%',
+  height: '100%',
+  borderRadius: 8,
+},
+middlePiece: {
+  width: '100%',
+  height: '100%',
+  borderRadius: 8,
+},
+bottomPiece: {
+  width: '60%',
+  height: '100%',
+  borderRadius: 6,
+},
+placeholder: {
+  justifyContent: 'center',
+  alignItems: 'center',
+  borderRadius: 8,
+  backgroundColor: '#E8E8E8',
+  borderWidth: 1,
+  borderColor: '#D0D0D0',
+  borderStyle: 'dashed',
+},
+topPlaceholder: {
+  width: '100%',
+  height: '100%',
+},
+middlePlaceholder: {
+  width: '100%',
+  height: '100%',
+},
+bottomPlaceholder: {
+  width: '60%',
+  height: '100%',
+},
+placeholderText: {
+  fontSize: 10,
+  color: '#999',
+  textAlign: 'center',
+},
+cardDescriptionContainer: {
+  paddingHorizontal: 6,
+  paddingBottom: 8,
+  paddingTop: 6,
+  minHeight: 40,
+  justifyContent: 'center',
+  borderTopWidth: 1,
+  borderTopColor: '#E8E8E8',
+  marginTop: 4,
+},
+cardDescriptionText: {
+  fontSize: 12,
+  fontWeight: '500',
+  color: '#333',
+  textAlign: 'center',
+  fontFamily: 'CreatoDisplay',
+  lineHeight: 14,
+},
 });
