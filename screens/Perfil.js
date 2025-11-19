@@ -243,52 +243,63 @@ export default function ProfileScreen() {
   };
 
 const LookCard = ({ item }) => {
-  const camisa = item.pecas.find(p => ['Camisa', 'Blusa', 'Top', 'Regata'].includes(p.tipo));
-  const calca = item.pecas.find(p => ['Calça', 'Saia', 'Shorts'].includes(p.tipo));
-  const sapato = item.pecas.find(p => ['Tênis', 'Sapato', 'Sandália'].includes(p.tipo));
+  // Simples e confiável: ordem do array define tudo
+  const primeiraPeca = item.pecas[0]; // Superior
+  const segundaPeca = item.pecas[1];  // Inferior
+  const terceiraPeca = item.pecas[2]; // Calçado
 
   return (
     <TouchableOpacity
       style={styles.outfitCard}
       onPress={() => openLookModal(item)}
     >
-      {/* Container principal das peças - espaço centralizado */}
       <View style={styles.lookContainer}>
-        {/* Peça superior (camisa/blusa) */}
+        {/* Posição 1 - Superior */}
         <View style={styles.topPieceContainer}>
-          {camisa ? (
-            <Image source={{ uri: camisa.imageUrl }} style={styles.topPiece} resizeMode="contain" />
+          {primeiraPeca ? (
+            <Image 
+              source={{ uri: primeiraPeca.imageUrl }} 
+              style={styles.topPiece} 
+              resizeMode="contain" 
+            />
           ) : (
             <View style={[styles.placeholder, styles.topPlaceholder]}>
-              <Text style={styles.placeholderText}>Camisa</Text>
+              <Text style={styles.placeholderText}>Superior</Text>
             </View>
           )}
         </View>
 
-        {/* Peça do meio (calça/saia) */}
+        {/* Posição 2 - Inferior */}
         <View style={styles.middlePieceContainer}>
-          {calca ? (
-            <Image source={{ uri: calca.imageUrl }} style={styles.middlePiece} resizeMode="contain" />
+          {segundaPeca ? (
+            <Image 
+              source={{ uri: segundaPeca.imageUrl }} 
+              style={styles.middlePiece} 
+              resizeMode="contain" 
+            />
           ) : (
             <View style={[styles.placeholder, styles.middlePlaceholder]}>
-              <Text style={styles.placeholderText}>Calça</Text>
+              <Text style={styles.placeholderText}>Inferior</Text>
             </View>
           )}
         </View>
 
-        {/* Peça inferior (sapato) */}
+        {/* Posição 3 - Calçado */}
         <View style={styles.bottomPieceContainer}>
-          {sapato ? (
-            <Image source={{ uri: sapato.imageUrl }} style={styles.bottomPiece} resizeMode="contain" />
+          {terceiraPeca ? (
+            <Image 
+              source={{ uri: terceiraPeca.imageUrl }} 
+              style={styles.bottomPiece} 
+              resizeMode="contain" 
+            />
           ) : (
             <View style={[styles.placeholder, styles.bottomPlaceholder]}>
-              <Text style={styles.placeholderText}>Sapato</Text>
+              <Text style={styles.placeholderText}>Calçado</Text>
             </View>
           )}
         </View>
       </View>
       
-      {/* Descrição - agora com mais espaço */}
       <View style={styles.cardDescriptionContainer}>
         <Text style={styles.cardDescriptionText} numberOfLines={2}>
           {item.name}
@@ -298,8 +309,9 @@ const LookCard = ({ item }) => {
   );
 };
 
+
 const outfitsToShow = [...savedOutfits];
-  while (outfitsToShow.length < 6) {
+  while (outfitsToShow.length < 10) {
     outfitsToShow.push(null);
   }
 
@@ -406,97 +418,95 @@ const outfitsToShow = [...savedOutfits];
       </Modal>
 
       {/* Modal de Look Ampliado */}
-      <Modal
-        visible={isLookModalVisible}
-        transparent
-        animationType="none"
-        onRequestClose={closeLookModal}
+{/* Modal de Look Ampliado - VERSÃO ATUALIZADA */}
+<Modal
+  visible={isLookModalVisible}
+  transparent
+  animationType="none"
+  onRequestClose={closeLookModal}
+>
+  <View style={styles.lookModalOverlay}>
+    <TouchableOpacity
+      style={styles.lookModalBackground}
+      activeOpacity={1}
+      onPress={closeLookModal}
+    />
+    
+    {selectedLook && (
+      <Animated.View
+        style={[
+          styles.lookModalContent,
+          {
+            opacity: lookModalOpacity,
+            transform: [{ scale: lookModalScale }],
+          },
+        ]}
       >
-        <View style={styles.lookModalOverlay}>
-          <TouchableOpacity
-            style={styles.lookModalBackground}
-            activeOpacity={1}
-            onPress={closeLookModal}
-          />
-          
-          {selectedLook && (
-            <Animated.View
-              style={[
-                styles.lookModalContent,
-                {
-                  opacity: lookModalOpacity,
-                  transform: [{ scale: lookModalScale }],
-                },
-              ]}
-            >
-              <TouchableOpacity style={styles.closeButton} onPress={closeLookModal}>
-                <FontAwesomeIcon icon={faTimes} size={24} color="#000" />
-              </TouchableOpacity>
+        <TouchableOpacity style={styles.closeButton} onPress={closeLookModal}>
+          <FontAwesomeIcon icon={faTimes} size={24} color="#000" />
+        </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.deleteButton} 
-                onPress={() => confirmDeleteLook(selectedLook.id)}
-              >
-                <FontAwesomeIcon icon={faTrash} size={20} color="#FFF" />
-              </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.deleteButton} 
+          onPress={() => confirmDeleteLook(selectedLook.id)}
+        >
+          <FontAwesomeIcon icon={faTrash} size={20} color="#FFF" />
+        </TouchableOpacity>
 
-              <View style={styles.modalTitleContainer}>
-                <Text style={styles.modalTitleText} numberOfLines={2}>
-                  {selectedLook.name}
-                </Text>
-              </View>
-
-              <View style={styles.modalLookContainer}>
-                <View style={styles.modalMainColumn}>
-                  {selectedLook.pecas.find(p => ['Camisa', 'Blusa', 'Top', 'Regata'].includes(p.tipo)) ? (
-                    <Image
-                      source={{
-                        uri: selectedLook.pecas.find(p => ['Camisa', 'Blusa', 'Top', 'Regata'].includes(p.tipo)).imageUrl,
-                      }}
-                      style={styles.modalMainPiece}
-                      resizeMode="contain"
-                    />
-                  ) : (
-                    <View style={[styles.placeholder, styles.modalMainPlaceholder]}>
-                      <Text style={styles.placeholderText}>Camisa</Text>
-                    </View>
-                  )}
-
-                  {selectedLook.pecas.find(p => ['Calça', 'Saia', 'Shorts'].includes(p.tipo)) ? (
-                    <Image
-                      source={{
-                        uri: selectedLook.pecas.find(p => ['Calça', 'Saia', 'Shorts'].includes(p.tipo)).imageUrl,
-                      }}
-                      style={styles.modalBottomPiece}
-                      resizeMode="contain"
-                    />
-                  ) : (
-                    <View style={[styles.placeholder, styles.modalBottomPlaceholder]}>
-                      <Text style={styles.placeholderText}>Calça</Text>
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.modalShoeContainer}>
-                  {selectedLook.pecas.find(p => ['Tênis', 'Sapato', 'Sandália'].includes(p.tipo)) ? (
-                    <Image
-                      source={{
-                        uri: selectedLook.pecas.find(p => ['Tênis', 'Sapato', 'Sandália'].includes(p.tipo)).imageUrl,
-                      }}
-                      style={styles.modalShoePiece}
-                      resizeMode="contain"
-                    />
-                  ) : (
-                    <View style={[styles.placeholder, styles.modalShoePlaceholder]}>
-                      <Text style={styles.placeholderText}>Sapato</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-            </Animated.View>
-          )}
+        <View style={styles.modalTitleContainer}>
+          <Text style={styles.modalTitleText} numberOfLines={2}>
+            {selectedLook.name}
+          </Text>
         </View>
-      </Modal>
+
+        <View style={styles.modalLookContainer}>
+          <View style={styles.modalMainColumn}>
+            {/* Posição 1 - Superior */}
+            {selectedLook.pecas[0] ? (
+              <Image
+                source={{ uri: selectedLook.pecas[0].imageUrl }}
+                style={styles.modalMainPiece}
+                resizeMode="contain"
+              />
+            ) : (
+              <View style={[styles.placeholder, styles.modalMainPlaceholder]}>
+                <Text style={styles.placeholderText}>Superior</Text>
+              </View>
+            )}
+
+            {/* Posição 2 - Inferior */}
+            {selectedLook.pecas[1] ? (
+              <Image
+                source={{ uri: selectedLook.pecas[1].imageUrl }}
+                style={styles.modalBottomPiece}
+                resizeMode="contain"
+              />
+            ) : (
+              <View style={[styles.placeholder, styles.modalBottomPlaceholder]}>
+                <Text style={styles.placeholderText}>Inferior</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.modalShoeContainer}>
+            {/* Posição 3 - Calçado */}
+            {selectedLook.pecas[2] ? (
+              <Image
+                source={{ uri: selectedLook.pecas[2].imageUrl }}
+                style={styles.modalShoePiece}
+                resizeMode="contain"
+              />
+            ) : (
+              <View style={[styles.placeholder, styles.modalShoePlaceholder]}>
+                <Text style={styles.placeholderText}>Calçado</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </Animated.View>
+    )}
+  </View>
+</Modal>
     </View>
   );
 }
