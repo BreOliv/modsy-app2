@@ -40,7 +40,15 @@
           "cameraPermission": "Precisamos acessar sua câmera para tirar fotos das roupas."
         }
       ],
-      "expo-font"
+       [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/StretchPro.otf",
+            "./assets/fonts/CreatoDisplay-Medium.otf"
+          ]
+        }
+      ]
     ]
   }
 }

@@ -10,6 +10,7 @@ import {
   Animated,
   Alert,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faGear, faUser, faTimes, faTrash, faPalette, faCircleQuestion, faRightFromBracket } from '@fortawesome/free-solid-svg-icons';
@@ -17,6 +18,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { auth, db } from '../firebaseConfig';
 import { doc, getDoc, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
 import { useFonts } from 'expo-font';
+import ModsyHelp from './ModsyHelp'; 
 
 const AVATARS = [
   require('../img/1.png'),
@@ -49,6 +51,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const slideAnim = useRef(new Animated.Value(300)).current;
+  const [showHelp, setShowHelp] = useState(false);
 
   // Modal de Look
   const [selectedLook, setSelectedLook] = useState(null);
@@ -243,10 +246,16 @@ export default function ProfileScreen() {
   };
 
 const LookCard = ({ item }) => {
-  // Simples e confiável: ordem do array define tudo
-  const primeiraPeca = item.pecas[0]; // Superior
-  const segundaPeca = item.pecas[1];  // Inferior
-  const terceiraPeca = item.pecas[2]; // Calçado
+  // Filtra apenas peças que existem
+  const pecasExistentes = item.pecas.filter(peca => peca && peca.imageUrl);
+  
+  if (pecasExistentes.length === 0) {
+    return <View style={[styles.outfitCard, styles.emptyCard]} />;
+  }
+
+  // Separa peças de roupa (posições 0 e 1) e calçados (posição 2)
+  const pecasRoupa = pecasExistentes.filter((_, index) => index < 2);
+  const pecasCalcado = pecasExistentes.filter((_, index) => index === 2);
 
   return (
     <TouchableOpacity
@@ -254,49 +263,41 @@ const LookCard = ({ item }) => {
       onPress={() => openLookModal(item)}
     >
       <View style={styles.lookContainer}>
-        {/* Posição 1 - Superior */}
-        <View style={styles.topPieceContainer}>
-          {primeiraPeca ? (
-            <Image 
-              source={{ uri: primeiraPeca.imageUrl }} 
-              style={styles.topPiece} 
-              resizeMode="contain" 
-            />
-          ) : (
-            <View style={[styles.placeholder, styles.topPlaceholder]}>
-              <Text style={styles.placeholderText}>Superior</Text>
+        {/* LADO ESQUERDO - Roupas (empilhadas verticalmente) */}
+        <View style={styles.clothesColumn}>
+          {pecasRoupa.map((peca, index) => (
+            <View 
+              key={peca.pecaId || `roupa-${item.id}-${index}`}
+              style={[
+                styles.clothesPieceContainer,
+                pecasRoupa.length === 1 && styles.singleClothesPiece,
+                pecasRoupa.length === 2 && index === 0 && styles.topClothesPiece,
+                pecasRoupa.length === 2 && index === 1 && styles.bottomClothesPiece,
+              ]}
+            >
+              <Image 
+                source={{ uri: peca.imageUrl }} 
+                style={styles.clothesImage} 
+                resizeMode="contain" 
+              />
             </View>
-          )}
+          ))}
         </View>
 
-        {/* Posição 2 - Inferior */}
-        <View style={styles.middlePieceContainer}>
-          {segundaPeca ? (
-            <Image 
-              source={{ uri: segundaPeca.imageUrl }} 
-              style={styles.middlePiece} 
-              resizeMode="contain" 
-            />
-          ) : (
-            <View style={[styles.placeholder, styles.middlePlaceholder]}>
-              <Text style={styles.placeholderText}>Inferior</Text>
+        {/* LADO DIREITO - Calçados */}
+        <View style={styles.shoesColumn}>
+          {pecasCalcado.map((peca, index) => (
+            <View 
+              key={peca.pecaId || `calcado-${item.id}-${index}`}
+              style={styles.shoeContainer}
+            >
+              <Image 
+                source={{ uri: peca.imageUrl }} 
+                style={styles.shoeImage} 
+                resizeMode="contain" 
+              />
             </View>
-          )}
-        </View>
-
-        {/* Posição 3 - Calçado */}
-        <View style={styles.bottomPieceContainer}>
-          {terceiraPeca ? (
-            <Image 
-              source={{ uri: terceiraPeca.imageUrl }} 
-              style={styles.bottomPiece} 
-              resizeMode="contain" 
-            />
-          ) : (
-            <View style={[styles.placeholder, styles.bottomPlaceholder]}>
-              <Text style={styles.placeholderText}>Calçado</Text>
-            </View>
-          )}
+          ))}
         </View>
       </View>
       
@@ -309,7 +310,6 @@ const LookCard = ({ item }) => {
   );
 };
 
-
 const outfitsToShow = [...savedOutfits];
   while (outfitsToShow.length < 10) {
     outfitsToShow.push(null);
@@ -320,14 +320,15 @@ const outfitsToShow = [...savedOutfits];
     groupedOutfits.push(outfitsToShow.slice(i, i + 2));
   }
 
-  if (!fontsLoaded) {
+ if (!fontsLoaded) {
     return (
-      <View style={styles.container}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#0000ff" />
         <Text>Carregando fontes...</Text>
       </View>
     );
   }
-
+  
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
@@ -379,46 +380,55 @@ const outfitsToShow = [...savedOutfits];
         </View>
       </ScrollView>
 
-      {/* Menu Modal */}
-      <Modal visible={isMenuVisible} transparent animationType="none" onRequestClose={closeMenu}>
-        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={closeMenu} />
-        <Animated.View style={[styles.menuContainer, { transform: [{ translateY: slideAnim }] }]}>
-          <View style={styles.menuHeader}>
-            <Text style={styles.menuTitle}>Configurações</Text>
-          </View>
-          <TouchableOpacity style={styles.menuItem} onPress={() => { closeMenu(); navigation.navigate('EditarPerfil'); }}>
-            <View style={styles.menuIcon}>
-              <FontAwesomeIcon icon={faUser} size={18} color="#FFF" />
-            </View>
-            <Text style={styles.menuText}>Editar Perfil</Text>
-            <Text style={styles.arrow}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem} onPress={handleEditarEstilos}>
-            <View style={styles.menuIcon}>
-              <FontAwesomeIcon icon={faPalette} size={18} color="#FFF" />
-            </View>
-            <Text style={styles.menuText}>Editar Gostos</Text>
-            <Text style={styles.arrow}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem} onPress={() => { closeMenu(); Alert.alert('Ajuda', 'Entre em contato com nosso suporte.'); }}>
-            <View style={styles.menuIcon}>
-              <FontAwesomeIcon icon={faCircleQuestion} size={18} color="#FFF" />
-            </View>
-            <Text style={styles.menuText}>Ajuda</Text>
-            <Text style={styles.arrow}>›</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.menuItem, { borderBottomWidth: 0 }]} onPress={handleLogout}>
-            <View style={[styles.menuIcon, { backgroundColor: '#f44336' }]}>
-              <FontAwesomeIcon icon={faRightFromBracket} size={18} color="#FFF" />
-            </View>
-            <Text style={[styles.menuText, { color: '#f44336' }]}>Sair da Conta</Text>
-            <Text style={[styles.arrow, { color: '#f44336' }]}>›</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </Modal>
+{/* Menu Modal */}
+<Modal visible={isMenuVisible} transparent animationType="none" onRequestClose={closeMenu}>
+  <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={closeMenu} />
+  <Animated.View style={[styles.menuContainer, { transform: [{ translateY: slideAnim }] }]}>
+    <View style={styles.menuHeader}>
+      <Text style={styles.menuTitle}>Configurações</Text>
+    </View>
+    <TouchableOpacity style={styles.menuItem} onPress={() => { closeMenu(); navigation.navigate('EditarPerfil'); }}>
+      <View style={styles.menuIcon}>
+        <FontAwesomeIcon icon={faUser} size={18} color="#FFF" />
+      </View>
+      <Text style={styles.menuText}>Editar Perfil</Text>
+      <Text style={styles.arrow}>›</Text>
+    </TouchableOpacity>
+    <TouchableOpacity style={styles.menuItem} onPress={handleEditarEstilos}>
+      <View style={styles.menuIcon}>
+        <FontAwesomeIcon icon={faPalette} size={18} color="#FFF" />
+      </View>
+      <Text style={styles.menuText}>Editar Gostos</Text>
+      <Text style={styles.arrow}>›</Text>
+    </TouchableOpacity>
+    <TouchableOpacity style={styles.menuItem} onPress={() => { 
+      closeMenu(); 
+      // Abre o modal de ajuda em vez do Alert
+      setShowHelp(true);
+    }}>
+      <View style={styles.menuIcon}>
+        <FontAwesomeIcon icon={faCircleQuestion} size={18} color="#FFF" />
+      </View>
+      <Text style={styles.menuText}>Ajuda</Text>
+      <Text style={styles.arrow}>›</Text>
+    </TouchableOpacity>
+    <TouchableOpacity style={[styles.menuItem, { borderBottomWidth: 0 }]} onPress={handleLogout}>
+      <View style={[styles.menuIcon, { backgroundColor: '#f44336' }]}>
+        <FontAwesomeIcon icon={faRightFromBracket} size={18} color="#FFF" />
+      </View>
+      <Text style={[styles.menuText, { color: '#f44336' }]}>Sair da Conta</Text>
+      <Text style={[styles.arrow, { color: '#f44336' }]}>›</Text>
+    </TouchableOpacity>
+  </Animated.View>
+</Modal>
 
+{/* Modal de Ajuda */}
+<ModsyHelp 
+  isOpen={showHelp} 
+  onClose={() => setShowHelp(false)} 
+/>
       {/* Modal de Look Ampliado */}
-{/* Modal de Look Ampliado - VERSÃO ATUALIZADA */}
+{/* Modal de Look Ampliado - VERSÃO DINÂMICA */}
 <Modal
   visible={isLookModalVisible}
   transparent
@@ -460,48 +470,39 @@ const outfitsToShow = [...savedOutfits];
         </View>
 
         <View style={styles.modalLookContainer}>
+          {/* Peças superiores (posições 0 e 1) */}
           <View style={styles.modalMainColumn}>
-            {/* Posição 1 - Superior */}
-            {selectedLook.pecas[0] ? (
+            {selectedLook.pecas[0] && (
               <Image
                 source={{ uri: selectedLook.pecas[0].imageUrl }}
                 style={styles.modalMainPiece}
                 resizeMode="contain"
               />
-            ) : (
-              <View style={[styles.placeholder, styles.modalMainPlaceholder]}>
-                <Text style={styles.placeholderText}>Superior</Text>
-              </View>
             )}
-
-            {/* Posição 2 - Inferior */}
-            {selectedLook.pecas[1] ? (
+            
+            {selectedLook.pecas[1] && (
               <Image
                 source={{ uri: selectedLook.pecas[1].imageUrl }}
-                style={styles.modalBottomPiece}
+                style={[
+                  styles.modalBottomPiece,
+                  // Ajusta altura se não tiver peça superior
+                  !selectedLook.pecas[0] && styles.modalSinglePiece
+                ]}
                 resizeMode="contain"
               />
-            ) : (
-              <View style={[styles.placeholder, styles.modalBottomPlaceholder]}>
-                <Text style={styles.placeholderText}>Inferior</Text>
-              </View>
             )}
           </View>
 
-          <View style={styles.modalShoeContainer}>
-            {/* Posição 3 - Calçado */}
-            {selectedLook.pecas[2] ? (
+          {/* Calçado (posição 2) - só mostra se existir */}
+          {selectedLook.pecas[2] && (
+            <View style={styles.modalShoeContainer}>
               <Image
                 source={{ uri: selectedLook.pecas[2].imageUrl }}
                 style={styles.modalShoePiece}
                 resizeMode="contain"
               />
-            ) : (
-              <View style={[styles.placeholder, styles.modalShoePlaceholder]}>
-                <Text style={styles.placeholderText}>Calçado</Text>
-              </View>
-            )}
-          </View>
+            </View>
+          )}
         </View>
       </Animated.View>
     )}
@@ -624,7 +625,7 @@ const styles = StyleSheet.create({
   },
   outfitCard: {
     width: '48%',
-    aspectRatio: 0.9,
+    aspectRatio: 0.85,
     backgroundColor: '#F5F5F0',
     borderRadius: 16,
     shadowColor: '#000',
@@ -633,78 +634,85 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
     overflow: 'hidden',
+    padding: 8,
   },
   emptyCard: {
     backgroundColor: '#F5F5F0',
   },
+
+  // ✅ LAYOUT LATERAL PARA CARDS PEQUENOS
   lookContainer: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: 'row', // Lado a lado
     justifyContent: 'space-between',
-    padding: 6,
+    alignItems: 'center',
+    paddingHorizontal: 4,
   },
-  mainColumn: {
-    width: '65%',
-    justifyContent: 'flex-start',
+
+  // COLUNA DE ROUPAS (Lado Esquerdo - 2/3 do espaço)
+  clothesColumn: {
+    flex: 2,
+    height: '100%',
+    justifyContent: 'center',
   },
-  mainPiece: {
+  clothesPieceContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 1,
+  },
+  singleClothesPiece: {
+    height: '90%', // Ocupa quase toda a altura se for única peça
+  },
+  topClothesPiece: {
+    height: '55%', // Parte de cima quando tem 2 peças
+  },
+  bottomClothesPiece: {
+    height: '40%', // Parte de baixo quando tem 2 peças
+  },
+  clothesImage: {
     width: '100%',
-    height: 100,
-    borderRadius: 12,
-    marginBottom: 6,
+    height: '100%',
+    borderRadius: 6,
   },
-  bottomPiece: {
-    width: '100%',
-    height: 70,
-    borderRadius: 12,
+
+  // COLUNA DE CALÇADOS (Lado Direito - 1/3 do espaço)
+  shoesColumn: {
+    flex: 1,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   shoeContainer: {
-    width: '30%',
+    width: '100%',
+    height: '70%',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  shoePiece: {
-    width: 60,
-    height: 60,
-    borderRadius: 10,
-  },
-  placeholder: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 8,
-    backgroundColor: '#F5F5F0',
-  },
-  mainPlaceholder: {
+  shoeImage: {
     width: '100%',
-    height: 100,
-    marginBottom: 6,
+    height: '100%',
+    borderRadius: 6,
   },
-  bottomPlaceholder: {
-    width: '100%',
-    height: 70,
-  },
-  shoePlaceholder: {
-    width: 60,
-    height: 60,
-  },
-  placeholderText: {
-    fontSize: 10,
-    color: '#999',
-  },
+
   cardDescriptionContainer: {
-    paddingHorizontal: 8,
-    paddingBottom: 8,
+    paddingHorizontal: 4,
+    paddingBottom: 6,
     paddingTop: 4,
-    minHeight: 40,
+    minHeight: 36,
     justifyContent: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#E8E8E8',
+    marginTop: 4,
   },
   cardDescriptionText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
     color: '#333',
     textAlign: 'center',
     fontFamily: 'CreatoDisplay',
+    lineHeight: 13,
   },
+
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -816,146 +824,36 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: 'CreatoDisplay',
   },
+
+  // ✅ MODAL MANTÉM LAYOUT VERTICAL
   modalLookContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    alignItems: 'center',
     marginTop: 10,
-    marginBottom: 20,
   },
   modalMainColumn: {
-    width: '65%',
-    justifyContent: 'flex-start',
+    width: '100%',
+    alignItems: 'center',
   },
   modalMainPiece: {
-    width: '100%',
-    height: 200,
+    width: '80%',
+    height: 150,
     borderRadius: 12,
     marginBottom: 10,
   },
   modalBottomPiece: {
-    width: '100%',
-    height: 140,
+    width: '80%',
+    height: 120,
     borderRadius: 12,
   },
   modalShoeContainer: {
-    width: '30%',
-    justifyContent: 'center',
+    width: '100%',
     alignItems: 'center',
+    marginTop: 10,
   },
   modalShoePiece: {
-    width: 90,
-    height: 90,
+    width: 100,
+    height: 80,
     borderRadius: 12,
   },
-  modalMainPlaceholder: {
-    width: '100%',
-    height: 200,
-    marginBottom: 10,
-  },
-  modalBottomPlaceholder: {
-    width: '100%',
-    height: 140,
-  },
-  modalShoePlaceholder: {
-    width: 90,
-    height: 90,
-  },
-  outfitCard: {
-  width: '48%',
-  aspectRatio: 0.85, // Um pouco mais alongado para dar espaço
-  backgroundColor: '#F5F5F0',
-  borderRadius: 16,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.1,
-  shadowRadius: 4,
-  elevation: 3,
-  overflow: 'hidden',
-  padding: 8,
-},
-lookContainer: {
-  flex: 1,
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  paddingVertical: 8,
-},
-topPieceContainer: {
-  width: '100%',
-  height: '35%',
-  justifyContent: 'center',
-  alignItems: 'center',
-  marginBottom: 4,
-},
-middlePieceContainer: {
-  width: '100%',
-  height: '30%',
-  justifyContent: 'center',
-  alignItems: 'center',
-  marginBottom: 4,
-},
-bottomPieceContainer: {
-  width: '100%',
-  height: '20%',
-  justifyContent: 'center',
-  alignItems: 'center',
-},
-topPiece: {
-  width: '100%',
-  height: '100%',
-  borderRadius: 8,
-},
-middlePiece: {
-  width: '100%',
-  height: '100%',
-  borderRadius: 8,
-},
-bottomPiece: {
-  width: '60%',
-  height: '100%',
-  borderRadius: 6,
-},
-placeholder: {
-  justifyContent: 'center',
-  alignItems: 'center',
-  borderRadius: 8,
-  backgroundColor: '#E8E8E8',
-  borderWidth: 1,
-  borderColor: '#D0D0D0',
-  borderStyle: 'dashed',
-},
-topPlaceholder: {
-  width: '100%',
-  height: '100%',
-},
-middlePlaceholder: {
-  width: '100%',
-  height: '100%',
-},
-bottomPlaceholder: {
-  width: '60%',
-  height: '100%',
-},
-placeholderText: {
-  fontSize: 10,
-  color: '#999',
-  textAlign: 'center',
-},
-cardDescriptionContainer: {
-  paddingHorizontal: 6,
-  paddingBottom: 8,
-  paddingTop: 6,
-  minHeight: 40,
-  justifyContent: 'center',
-  borderTopWidth: 1,
-  borderTopColor: '#E8E8E8',
-  marginTop: 4,
-},
-cardDescriptionText: {
-  fontSize: 12,
-  fontWeight: '500',
-  color: '#333',
-  textAlign: 'center',
-  fontFamily: 'CreatoDisplay',
-  lineHeight: 14,
-},
 });
