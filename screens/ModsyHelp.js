@@ -8,8 +8,8 @@ import {
   ScrollView,
   Modal,
   Dimensions,
+   ImageBackground,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 
@@ -46,13 +46,12 @@ const ModsyHelp = ({ isOpen, onClose }) => {
       onRequestClose={onClose}
     >
       <SafeAreaView style={styles.safeArea}>
-        <LinearGradient
-          colors={['#8b6db8ff', '#5B21B6', '#6D28D9']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
+      <ImageBackground
+          source={require('../img/Manual.png')} 
           style={styles.container}
-        >
-          {/* Botão de fechar */}
+          resizeMode="cover"
+        >         
+         {/* Botão de fechar */}
           <TouchableOpacity 
             style={styles.closeButton}
             onPress={onClose}
@@ -224,7 +223,7 @@ const ModsyHelp = ({ isOpen, onClose }) => {
               </View>
             </View>
           </ScrollView>
-        </LinearGradient>
+        </ImageBackground>
       </SafeAreaView>
     </Modal>
   );
@@ -233,7 +232,7 @@ const ModsyHelp = ({ isOpen, onClose }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#9962eaff',
+    backgroundColor: '#f5f5f5', 
   },
   container: {
     flex: 1,
@@ -247,12 +246,12 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)', 
     borderRadius: 20,
   },
   closeIcon: {
     fontSize: 20,
-    color: '#FFFFFF',
+    color: '#000000', 
     fontWeight: 'bold',
   },
   backgroundImage3: {
@@ -261,7 +260,7 @@ const styles = StyleSheet.create({
     left: 0,
     width: width,
     height: height * 0.5,
-    opacity: 0.3,
+    opacity: 0.1, 
   },
   backgroundImage4: {
     position: 'absolute',
@@ -269,7 +268,7 @@ const styles = StyleSheet.create({
     right: 0,
     width: width,
     height: height * 0.5,
-    opacity: 0.3,
+    opacity: 0.1,
   },
   scrollView: {
     flex: 1,
@@ -286,14 +285,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#000000', 
     marginBottom: 12,
     lineHeight: 40,
     fontFamily: 'CreatoDisplay',
   },
   subtitle: {
     fontSize: 14,
-    color: '#E9D5FF',
+    color: '#4B5563', 
     lineHeight: 20,
     fontFamily: 'CreatoDisplay',
   },
@@ -305,26 +304,26 @@ const styles = StyleSheet.create({
   loadingDot: {
     width: 12,
     height: 12,
-    backgroundColor: '#D8B4FE',
+    backgroundColor: '#6B7280', 
     borderRadius: 6,
   },
   sectionsContainer: {
     paddingHorizontal: 24,
   },
   section: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.17)', 
     borderRadius: 20,
     padding: 20,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 1)',
   },
   sectionContent: {
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
   iconContainerNumber: {
-    backgroundColor: '#7210c3ff',
+    backgroundColor: '#a89cf2', 
     borderRadius: 25,
     width: 50,
     height: 50,
@@ -333,7 +332,7 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   numberText: {
-    color: '#FFFFFF',
+    color: '#000000', 
     fontWeight: 'bold',
     fontSize: 22,
     fontFamily: 'CreatoDisplay',
@@ -342,7 +341,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sectionTitle: {
-    color: '#FFFFFF',
+    color: '#000000', 
     fontWeight: 'bold',
     fontSize: 17,
     marginBottom: 12,
@@ -350,19 +349,19 @@ const styles = StyleSheet.create({
     fontFamily: 'CreatoDisplay',
   },
   descriptionText: {
-    color: '#E9D5FF',
+    color: '#374151', 
     fontSize: 14,
     lineHeight: 22,
     fontFamily: 'CreatoDisplay',
   },
   boldText: {
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#000000', 
     fontFamily: 'CreatoDisplay',
   },
   noteText: {
     fontSize: 12,
-    color: '#D8B4FE',
+    color: '#6B7280', 
     fontFamily: 'CreatoDisplay',
   },
   brandFooter: {
@@ -371,13 +370,11 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   brandText: {
-    color: '#E9D5FF',
+    color: '#4B5563', 
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 22,
     fontFamily: 'CreatoDisplay',
   },
-  
 });
-
 export default ModsyHelp;
