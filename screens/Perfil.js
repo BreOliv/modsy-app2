@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import {
-  View,
+View,
   Text,
   TouchableOpacity,
   StyleSheet,
@@ -130,13 +130,20 @@ export default function ProfileScreen() {
   };
 
   const renderAvatar = () => {
+   if (loading) {
     return (
-      <Image 
-        source={AVATARS[avatarIndex]} 
-        style={styles.avatarImage}
-      />
+      <View style={[styles.avatar, { backgroundColor: 'transparent' }]}>
+        <View style={styles.avatarPlaceholder} />
+      </View>
     );
-  };
+  }
+  return (
+    <Image 
+      source={AVATARS[avatarIndex]} 
+      style={styles.avatarImage}
+    />
+  );
+};
 
   useFocusEffect(
     useCallback(() => {
@@ -569,7 +576,7 @@ const styles = StyleSheet.create({
     width: 85,
     height: 85,
     borderRadius: 42.5,
-    backgroundColor: '#D3CEC4',
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 4,
@@ -856,4 +863,9 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 12,
   },
+  avatarPlaceholder: {
+  width: '100%',
+  height: '100%',
+  backgroundColor: 'transparent', // ou uma cor neutra que combine
+},
 });
